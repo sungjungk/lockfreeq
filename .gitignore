@@ -28,6 +28,20 @@
 *.x86_64
 *.hex
 
-# Debug files
+# Debug files (inc. coredump)
 *.dSYM/
 *.su
+*.core
+core
+
+# Ctags / Cscope
+*~
+TAGS
+tags
+cscope.*
+
+# Swap files
+*.swp
+
+# Sandbox files
+sandbox/
