@@ -38,7 +38,6 @@
 #endif
 #define UNLIKELY(expr__) (__builtin_expect(((expr__) ? 1 : 0), 0))
 
-#define tb_bool_t uchar                                                         
 #ifndef true                                                                    
 #   define true  1                                                              
 # 	define false 0                                                              
