@@ -13,20 +13,24 @@
 
 #include "atomic.h"
 
+#ifndef _JOB_QUEUE
+#ifndef READER_NUM
+#define READER_NUM				2
+#endif
+#endif
 
+#ifndef QUEUE_SIZE
 #define QUEUE_SIZE				4096	/* Size of the Queue */
+#endif
 
 #ifndef PAGE_SIZE
-#define PAGE_SIZE	4096
+#define PAGE_SIZE				4096
 #endif
 
 #ifndef CACHE_LINE_SIZE
-#define CACHE_LINE_SIZE	64	
+#define CACHE_LINE_SIZE			64	
 #endif
 
-#ifndef BUFFER_SIZE
-#define BUFFER_SIZE	8192
-#endif
 
 #ifdef LIKELY
 #undef LIKELY
@@ -71,12 +75,17 @@ struct entry_s {
 
 typedef struct lock_free_queue_s lock_free_queue_t;
 struct lock_free_queue_s {
-	/* for publishers */
+	/* for writers */
 	cursor_t writer_cursor;
 
-	/* for subscribers */
+	/* for readers */
+#ifdef _JOB_QUEUE
 	cursor_t reader_cursor;
 	cursor_t reader_upper_cursor;
+#else /* broadcast queue / balancing queue */
+	cursor_t reader_cursor[READER_NUM];
+	cursor_t reader_upper_cursor;
+#endif
 
 	entry_t buffer[QUEUE_SIZE];
 } __attribute__((aligned(PAGE_SIZE)));
@@ -90,5 +99,6 @@ void init_lock_free_queue(void);
 
 void enqueue(uint64_t data);
 const entry_t* dequeue(void);
+const entry_t* dequeue_all(cursor_t *cursor);
 
 #endif

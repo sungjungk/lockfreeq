@@ -13,10 +13,10 @@ else()
 endif()
 message(STATUS "Install Prefix is ${CMAKE_INSTALL_PREFIX}")
 
-#set(COMMON_LIBS common)
-
 # complie options
-#add_definitions(-D_LOG_ON_MEMORY)
+add_definitions(-D_JOB_QUEUE)
+#add_definitions(-D_BROADCAST_QUEUE)
+#add_definitions(-D_BALANCING_QUEUE)
 
 add_compile_flags("-pipe -Wall -Werror=implicit-function-declaration")
 add_compile_flags("-Wdeclaration-after-statement -fno-strict-aliasing")

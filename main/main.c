@@ -15,7 +15,7 @@
 #include "lock_free_q.h"
 #include "common.h"
 
-#define ENTRIES_TO_GENERATE  100000
+#define PACKET_GEN_NUM  100000
 
 
 static void*
@@ -24,13 +24,19 @@ init_reader_thread(void *args)
 	const entry_t *entry;
 
 	while (1) {
+#ifdef _JOB_QUEUE
 		entry = dequeue(); 
+#else
+		entry = dequeue_all(&queue.reader_cursor[((thread_args_t*)args)->tid]);
+#endif
 
 		if (!entry->data)
 			continue;
 
 		if (entry->data == -1)
 			break;
+		
+		/* XXX: Data retrieval from entry->data */
 	}
 
 	printf("Reader done\n");
@@ -52,7 +58,7 @@ create_readers(void)
 	pthread_attr_setstacksize(&attr, THREAD_STACK_SIZE);
 	pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
 
-#define READER_NUM				16
+#define READER_NUM				2
 	for (i = 0; i < READER_NUM; i++) {
 		args = malloc(sizeof(thread_args_t));
 		args->tid = i;
@@ -68,7 +74,7 @@ static atomic_t send_data = 1;
 static void*
 init_writer_thread(void *args)
 {
-	uint64_t reps = ENTRIES_TO_GENERATE;
+	uint64_t reps = PACKET_GEN_NUM;
 
 	while (reps--) {
 		enqueue(atomic_fetch_and_add(&send_data, 1));
@@ -92,7 +98,7 @@ create_writers(void)
 	pthread_attr_setstacksize(&attr, THREAD_STACK_SIZE);
 	pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
 
-#define WRITER_NUM				16
+#define WRITER_NUM				1
 	for (i = 0; i < WRITER_NUM; i++) {
 		args = malloc(sizeof(*args));
 		args->tid = i + READER_NUM;

@@ -22,7 +22,14 @@ void
 init_lock_free_queue(void)
 {
 	memset(&queue, '\0', sizeof(lock_free_queue_t));
+
+#ifdef _JOB_QUEUE
 	queue.reader_cursor.pos = -1;
+#else
+	int i;
+	for (i = 0; i < READER_NUM; i++)
+		queue.reader_cursor[i].pos = -1;
+#endif
 }
 
 
@@ -35,12 +42,28 @@ writer_waiting_next_entry(cursor_t* const cursor)
 	cursor->pos = new_pos.pos;
 
 	while (true) {
+#ifdef _JOB_QUEUE
 		slowest_reader.pos = atomic_load(&queue.reader_cursor.pos);
 
 		if (UNLIKELY(-1 == slowest_reader.pos)) 
 			slowest_reader.pos = new_pos.pos - ((QUEUE_SIZE - 1) & new_pos.pos);
 
 		atomic_store(&queue.reader_cursor.pos, slowest_reader.pos);
+#else
+		slowest_reader.pos = -1;
+		cursor_t tmp;
+		int i;
+		for (i = 0; i < READER_NUM; i++) {
+			tmp.pos = atomic_load(&queue.reader_cursor[i].pos);
+			if (tmp.pos < slowest_reader.pos)
+				slowest_reader.pos = tmp.pos;
+
+			if (UNLIKELY(-1 == slowest_reader.pos)) 
+				slowest_reader.pos = new_pos.pos - ((QUEUE_SIZE - 1) & new_pos.pos);
+			atomic_store(&queue.reader_cursor[i].pos, slowest_reader.pos);
+		}
+#endif
+
 		
 		if (LIKELY((cursor->pos - slowest_reader.pos) <= (QUEUE_SIZE - 1))) 
 			return ;
@@ -85,6 +108,7 @@ enqueue(uint64_t data)
 	writer_push_entry(&cursor);
 }
 
+#ifdef _JOB_QUEUE
 const entry_t*
 dequeue(void)
 {
@@ -99,5 +123,21 @@ dequeue(void)
 
 	return entry;
 }
+#else
+const entry_t*
+dequeue_all(cursor_t *cursor)
+{
+	const entry_t *entry;
+	
+	while (atomic_load(&cursor->pos) == -1 || 
+		   atomic_load(&cursor->pos) > atomic_load(&queue.reader_upper_cursor.pos)){
+		nanosleep(&timeout.timeout, NULL);
+	}
+
+	entry = &queue.buffer[(QUEUE_SIZE - 1) & atomic_fetch_and_add(&cursor->pos, 1)];
+
+	return entry;
+}
+#endif
 
 /* end of lockfreeq.c */
